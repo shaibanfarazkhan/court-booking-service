@@ -7,4 +7,3 @@ api_router = APIRouter(prefix="/v1")
 async def health_check() -> dict[str, str]:
     """Basic health check endpoint to verify service availability."""
     return {"status": "ok"}
-
