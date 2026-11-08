@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -119,4 +120,12 @@ class Booking(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         lazy="selectin",
     )
 
-    __table_args__ = (Index("ix_bookings_user_status", "user_id", "status"),)
+    __table_args__ = (
+        CheckConstraint(
+            "total_amount >= 0",
+            name="ck_bookings_positive_total_amount",
+        ),
+        Index("ix_bookings_user_status", "user_id", "status"),
+        Index("ix_bookings_court_status", "court_id", "status"),
+        Index("ix_bookings_held_active", "status", "hold_expires_at"),
+    )

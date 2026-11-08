@@ -2,7 +2,7 @@ from datetime import time
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Numeric, String, Text, Time
+from sqlalchemy import Boolean, CheckConstraint, Numeric, String, Text, Time
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -50,4 +50,11 @@ class Venue(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         back_populates="venue",
         cascade="all, delete-orphan",
         lazy="selectin",
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "closing_time > opening_time",
+            name="ck_venues_valid_operating_hours",
+        ),
     )

@@ -1,10 +1,11 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -67,7 +68,7 @@ class TimeSlot(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         "Court",
         back_populates="time_slots",
     )
-    booking: Mapped[Optional["Booking"]] = relationship(
+    booking: Mapped["Booking | None"] = relationship(
         "Booking",
         back_populates="time_slot",
         uselist=False,
@@ -75,6 +76,14 @@ class TimeSlot(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     __table_args__ = (
         UniqueConstraint("court_id", "start_time", name="uq_time_slots_court_start"),
+        CheckConstraint(
+            "end_time > start_time",
+            name="ck_time_slots_valid_duration",
+        ),
+        CheckConstraint(
+            "price >= 0",
+            name="ck_time_slots_positive_price",
+        ),
         Index(
             "ix_time_slots_court_start_end_status",
             "court_id",

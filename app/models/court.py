@@ -4,8 +4,10 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Enum,
     ForeignKey,
+    Index,
     Numeric,
     String,
     UniqueConstraint,
@@ -92,5 +94,10 @@ class Court(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     __table_args__ = (
         UniqueConstraint("venue_id", "name", name="uq_courts_venue_id_name"),
+        CheckConstraint(
+            "base_price_per_hour >= 0",
+            name="ck_courts_positive_base_price",
+        ),
+        Index("ix_courts_venue_is_active", "venue_id", "is_active"),
+        Index("ix_courts_sport_is_active", "sport_id", "is_active"),
     )
-

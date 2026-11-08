@@ -47,10 +47,20 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
 
-    # Async Database connection URL
+    # Async Database connection URLs
     DATABASE_URL: str = (
         "postgresql+asyncpg://postgres:postgres@localhost:5432/court_booking_db"
     )
+    TEST_DATABASE_URL: str = (
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/court_booking_test_db"
+    )
+
+    # Database connection pool tuning
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_TIMEOUT: int = 30
+    DB_POOL_RECYCLE: int = 1800
+    DB_ECHO: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

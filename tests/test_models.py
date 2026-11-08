@@ -51,4 +51,3 @@ def test_entity_relationships_declared() -> None:
     assert hasattr(Booking, "payments")
     assert hasattr(Payment, "booking")
     assert hasattr(Payment, "user")
-

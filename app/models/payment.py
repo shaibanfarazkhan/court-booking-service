@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -86,6 +87,18 @@ class Payment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
     __table_args__ = (
+        CheckConstraint(
+            "amount >= 0",
+            name="ck_payments_positive_amount",
+        ),
+        CheckConstraint(
+            "refund_amount >= 0",
+            name="ck_payments_positive_refund_amount",
+        ),
+        CheckConstraint(
+            "refund_amount <= amount",
+            name="ck_payments_refund_lte_amount",
+        ),
         Index("ix_payments_booking_status", "booking_id", "status"),
         Index("ix_payments_user_created", "user_id", "created_at"),
     )

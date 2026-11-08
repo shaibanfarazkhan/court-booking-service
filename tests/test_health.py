@@ -14,6 +14,7 @@ def test_app_initialization() -> None:
     """Verify FastAPI application boots and registers routes properly."""
     assert app.title == "Court Booking Service"
     assert str(app.url_path_for("health_check")) == "/api/v1/health"
+    assert str(app.url_path_for("database_health_check")) == "/api/v1/health/db"
 
 
 def test_health_check_payload() -> None:

@@ -12,7 +12,8 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
-    "sqlalchemy>=2.0.36",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "greenlet>=3.1.0",
     "asyncpg>=0.30.0",
     "psycopg[binary]>=3.2.3",
     "alembic>=1.13.3",
@@ -67,6 +68,3 @@ minversion = "8.0"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
-
