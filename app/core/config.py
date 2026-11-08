@@ -69,9 +69,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Security & JWT Configuration
-    JWT_SECRET_KEY: str = (
-        "court-booking-jwt-secret-key-32-bytes-minimum-security-token"
-    )
+    JWT_SECRET_KEY: str = "court-booking-jwt-secret-key-32-bytes-minimum-security-token"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7

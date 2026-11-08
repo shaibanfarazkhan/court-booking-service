@@ -13,50 +13,98 @@ from app.core.config import settings
 # ---------------------------------------------------------------------------
 # Password Hashing Layer
 # ---------------------------------------------------------------------------
+# Prioritize direct bcrypt to avoid Passlib 1.7.4's known bug with bcrypt >= 4.1.0
 try:
-    from passlib.context import CryptContext
-
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    import bcrypt
 
     def hash_password(password: str) -> str:
-        """Hash a plain text password using bcrypt."""
-        return str(pwd_context.hash(password))
+        """Hash a plain text password using direct bcrypt (max 72 bytes)."""
+        pwd_bytes = password.encode("utf-8")
+        if len(pwd_bytes) > 72:
+            raise ValueError(
+                "password cannot be longer than 72 bytes, truncate manually if"
+                " necessary"
+            )
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
 
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verify a plain password against its bcrypt hash."""
-        return bool(pwd_context.verify(plain_password, hashed_password))
-
-except ImportError:
-    # Pure Python PBKDF2-HMAC-SHA256 fallback when passlib/bcrypt is not installed
-    def hash_password(password: str) -> str:
-        """Hash a plain text password using PBKDF2-HMAC-SHA256 with 100,000 rounds."""
-        salt = secrets.token_hex(16)
-        key = hashlib.pbkdf2_hmac(
-            "sha256",
-            password.encode("utf-8"),
-            salt.encode("utf-8"),
-            100_000,
-        )
-        return f"pbkdf2:sha256:100000${salt}${key.hex()}"
-
-    def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Verify a plain password against its PBKDF2 hash."""
-        if not hashed_password.startswith("pbkdf2:sha256:"):
+        pwd_bytes = plain_password.encode("utf-8")
+        if len(pwd_bytes) > 72:
             return False
         try:
-            parts = hashed_password.split("$")
-            if len(parts) != 3:
+            return bool(bcrypt.checkpw(pwd_bytes, hashed_password.encode("utf-8")))
+        except Exception:
+            return False
+
+except ImportError:
+    try:
+        from passlib.context import CryptContext
+
+        pwd_context = CryptContext(
+            schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto"
+        )
+
+        def hash_password(password: str) -> str:
+            """Hash a plain text password using passlib."""
+            pwd_bytes = password.encode("utf-8")
+            if len(pwd_bytes) > 72:
+                raise ValueError(
+                    "password cannot be longer than 72 bytes, truncate"
+                    " manually if necessary"
+                )
+            return str(pwd_context.hash(password[:72]))
+
+        def verify_password(plain_password: str, hashed_password: str) -> bool:
+            """Verify a plain password against its passlib hash."""
+            if len(plain_password.encode("utf-8")) > 72:
                 return False
-            _, salt, expected_hex = parts
+            try:
+                return bool(pwd_context.verify(plain_password[:72], hashed_password))
+            except Exception:
+                return False
+
+    except Exception:
+        # Pure Python PBKDF2-HMAC-SHA256 fallback when neither bcrypt nor passlib is installed
+        def hash_password(password: str) -> str:
+            """Hash a plain text password using PBKDF2-HMAC-SHA256 with 100,000 rounds."""
+            pwd_bytes = password.encode("utf-8")
+            if len(pwd_bytes) > 72:
+                raise ValueError(
+                    "password cannot be longer than 72 bytes, truncate"
+                    " manually if necessary"
+                )
+            salt = secrets.token_hex(16)
             key = hashlib.pbkdf2_hmac(
                 "sha256",
-                plain_password.encode("utf-8"),
+                pwd_bytes,
                 salt.encode("utf-8"),
                 100_000,
             )
-            return hmac.compare_digest(key.hex(), expected_hex)
-        except Exception:
-            return False
+            return f"pbkdf2:sha256:100000${salt}${key.hex()}"
+
+        def verify_password(plain_password: str, hashed_password: str) -> bool:
+            """Verify a plain password against its PBKDF2 hash."""
+            pwd_bytes = plain_password.encode("utf-8")
+            if len(pwd_bytes) > 72:
+                return False
+            if not hashed_password.startswith("pbkdf2:sha256:"):
+                return False
+            try:
+                parts = hashed_password.split("$")
+                if len(parts) != 3:
+                    return False
+                _, salt, expected_hex = parts
+                key = hashlib.pbkdf2_hmac(
+                    "sha256",
+                    pwd_bytes,
+                    salt.encode("utf-8"),
+                    100_000,
+                )
+                return hmac.compare_digest(key.hex(), expected_hex)
+            except Exception:
+                return False
 
 
 # ---------------------------------------------------------------------------

@@ -31,4 +31,3 @@ class UserNotFoundError(DomainException):
 
 class InsufficientPermissionsError(DomainException):
     """Raised when a user lacks the required role or privileges."""
-

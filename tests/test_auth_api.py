@@ -51,6 +51,25 @@ def test_api_register_invalid_password_validation() -> None:
         )
 
 
+def test_api_register_password_longer_than_72_bytes_rejected() -> None:
+    """Verify schema rejects passwords exceeding 72 bytes."""
+    with pytest.raises(ValueError, match="Password cannot be longer than 72 bytes"):
+        UserRegisterRequest(
+            email="toolong@courtbooking.com",
+            password="A" * 71 + "1a",  # 73 characters
+            full_name="Too Long",
+        )
+
+
+def test_api_login_password_longer_than_72_bytes_rejected() -> None:
+    """Verify login schema rejects passwords exceeding 72 bytes."""
+    with pytest.raises(ValueError, match="Password cannot be longer than 72 bytes"):
+        UserLoginRequest(
+            email="toolong@courtbooking.com",
+            password="A" * 73,
+        )
+
+
 def test_api_register_invalid_email_validation() -> None:
     """Verify schema rejects malformed email addresses."""
     with pytest.raises(ValueError):

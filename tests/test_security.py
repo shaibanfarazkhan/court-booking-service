@@ -21,6 +21,19 @@ def test_password_hashing_and_verification() -> None:
     assert verify_password("WrongPassword999!", hashed) is False
 
 
+def test_password_exceeding_72_bytes_rejected_by_hasher() -> None:
+    """Verify that passwords exceeding 72 bytes are rejected by hash_password."""
+    long_password = "A" * 71 + "1a"  # 73 characters / 73 bytes
+    with pytest.raises(ValueError, match="password cannot be longer than 72 bytes"):
+        hash_password(long_password)
+
+
+def test_verify_password_exceeding_72_bytes_returns_false() -> None:
+    """Verify that verify_password with >72 byte password returns False."""
+    hashed = hash_password("ValidPassword123!")
+    assert verify_password("A" * 73, hashed) is False
+
+
 def test_create_and_decode_access_token() -> None:
     """Verify access token creation and payload decoding."""
     payload_data = {

@@ -16,8 +16,10 @@ class UserRegisterRequest(BaseModel):
     password: str = Field(
         ...,
         min_length=8,
-        max_length=128,
-        description="Password with at least 8 characters, one letter and one number",
+        max_length=72,
+        description=(
+            "Password between 8 and 72 bytes with at least one letter and one number"
+        ),
     )
     full_name: str = Field(..., min_length=2, max_length=150)
     phone_number: str | None = Field(default=None, max_length=30)
@@ -36,6 +38,8 @@ class UserRegisterRequest(BaseModel):
     def validate_password_strength(cls, value: str) -> str:
         if len(value) < 8:
             raise ValueError("Password must be at least 8 characters long")
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password cannot be longer than 72 bytes")
         if not any(char.isdigit() for char in value):
             raise ValueError("Password must contain at least one numeric digit")
         if not any(char.isalpha() for char in value):
@@ -47,12 +51,19 @@ class UserLoginRequest(BaseModel):
     """Payload for authenticating and obtaining tokens."""
 
     email: str = Field(..., max_length=255)
-    password: str = Field(...)
+    password: str = Field(..., min_length=1, max_length=72)
 
     @field_validator("email")
     @classmethod
     def normalize_email(cls, value: str) -> str:
         return value.strip().lower()
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_length(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password cannot be longer than 72 bytes")
+        return value
 
 
 class TokenRefreshRequest(BaseModel):
