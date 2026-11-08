@@ -8,6 +8,7 @@ Production-ready backend service for managing sports court availability, tempora
 
 - **Runtime & Language:** Python 3.11+
 - **Web Framework:** FastAPI
+- **Security & Auth:** JWT (HS256), bcrypt / PBKDF2 password hashing, RBAC
 - **ORM & Migrations:** SQLAlchemy 2.0 (Async), Alembic
 - **Database:** PostgreSQL 15 (asyncpg driver)
 - **Containerization:** Docker & Docker Compose
@@ -27,10 +28,14 @@ court-booking-service/
 │   └── script.py.mako   # Migration script template
 ├── app/
 │   ├── api/             # HTTP endpoints and routing
+│   │   ├── dependencies.py # Auth guards (get_current_user, require_member/staff/admin)
 │   │   └── v1/
-│   │       └── router.py
+│   │       ├── router.py   # Root v1 aggregator
+│   │       └── auth.py     # Authentication endpoints (register, login, refresh, me)
 │   ├── core/            # Configuration, settings, and security
-│   │   └── config.py
+│   │   ├── config.py       # Pydantic Settings & environment variables
+│   │   ├── exceptions.py   # Domain exceptions
+│   │   └── security.py     # Password hashing & JWT token generation/verification
 │   ├── db/              # Database infrastructure (SQLAlchemy 2.0 Async)
 │   │   ├── base.py      # Unified metadata registry for Alembic discovery
 │   │   ├── database.py  # AsyncEngine configuration, pooling & health ping
@@ -38,7 +43,7 @@ court-booking-service/
 │   ├── models/          # Declarative ORM models (Domain persistence)
 │   │   ├── base.py      # DeclarativeBase, UUIDPrimaryKeyMixin, TimestampMixin
 │   │   ├── enums.py     # StrEnums (UserRole, SlotStatus, BookingStatus, etc.)
-│   │   ├── user.py
+│   │   ├── user.py      # User account model
 │   │   ├── admin.py
 │   │   ├── venue.py
 │   │   ├── sport.py
@@ -48,15 +53,21 @@ court-booking-service/
 │   │   ├── booking.py
 │   │   └── payment.py
 │   ├── repositories/    # Data access layer (Queries, DB operations)
+│   │   └── user_repository.py # User queries and creation
 │   ├── schemas/         # Pydantic schemas / DTOs (Validation & serialization)
+│   │   └── auth.py      # Auth DTOs (Register, Login, Refresh, UserResponse)
 │   ├── services/        # Domain business logic (Holds, Bookings, Pricing)
+│   │   └── auth_service.py # Authentication, hashing, and token rotation
 │   └── main.py          # Application factory & lifespan connection hooks
-├── tests/               # Unit, integration, and concurrency tests
+├── tests/               # Unit, integration, and security tests
 │   ├── conftest.py
+│   ├── test_auth_api.py
+│   ├── test_auth_service.py
 │   ├── test_database_design.py
 │   ├── test_database_infrastructure.py
 │   ├── test_health.py
-│   └── test_models.py
+│   ├── test_models.py
+│   └── test_security.py
 ├── .dockerignore        # Exclusions for Docker build context
 ├── .env.example         # Example environment variables template
 ├── .gitignore           # Git ignore rules
@@ -72,12 +83,37 @@ court-booking-service/
 
 ---
 
+## 🔐 Authentication & Authorization (RBAC)
+
+The service implements JSON Web Token (JWT) authentication using the `HS256` signature algorithm and secure password hashing.
+
+### User Roles
+- **`MEMBER`**: Default registered customer role. Can browse availability, place holds, confirm bookings, and manage personal reservations.
+- **`STAFF`**: Venue operator role. Can manage court schedules, check-in players, and view daily slot status.
+- **`ADMIN`**: Superuser role. Full administrative access, court creation, pricing configuration, and financial reporting.
+
+### Authentication Endpoints
+| Method | Endpoint | Description | Status Code |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/register` | Register a new member account | `201 Created` |
+| `POST` | `/api/v1/auth/login` | Authenticate credentials and receive token pair | `200 OK` |
+| `POST` | `/api/v1/auth/refresh` | Rotate access and refresh tokens | `200 OK` |
+| `GET` | `/api/v1/auth/me` | Fetch authenticated user's profile | `200 OK` |
+
+### Security Dependencies
+- `get_current_user`: Extracts and validates the Bearer token, querying the database for active user status.
+- `require_member`: Enforces authenticated user with at least `MEMBER` privileges.
+- `require_staff`: Enforces `STAFF` or `ADMIN` privileges.
+- `require_admin`: Enforces `ADMIN` privileges exclusively.
+
+---
+
 ## ⚙️ Environment Variables
 
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
 | `APP_NAME` | `Court Booking Service` | Service identifier |
-| `APP_ENV` | `development` | Deployment environment (`development`, `staging`, `production`) |
+| `APP_ENV` | `development` | Deployment environment |
 | `DEBUG` | `True` | Debug mode toggle |
 | `HOST` | `0.0.0.0` | Binding host IP |
 | `PORT` | `8000` | HTTP port |
@@ -86,8 +122,12 @@ court-booking-service/
 | `DB_POOL_SIZE` | `10` | Base database connection pool size |
 | `DB_MAX_OVERFLOW` | `20` | Maximum bursting connections beyond pool size |
 | `DB_POOL_TIMEOUT` | `30` | Seconds to wait before timing out on pool checkout |
-| `DB_POOL_RECYCLE` | `1800` | Reconnect connections after 30 minutes to prevent stale sockets |
+| `DB_POOL_RECYCLE` | `1800` | Reconnect connections after 30 minutes |
 | `DB_ECHO` | `False` | Log all SQL statements to stdout |
+| `JWT_SECRET_KEY` | `court-booking-jwt-secret-key-32-bytes-minimum-security-token` | Secret HMAC signing key |
+| `JWT_ALGORITHM` | `HS256` | JWT signature algorithm |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Short-lived access token TTL in minutes |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Long-lived refresh token TTL in days |
 
 ---
 
@@ -130,46 +170,32 @@ docker compose up -d db
 ```
 
 ### 6. Database Migrations (Alembic)
-Generate the initial database migration:
 ```bash
 alembic revision --autogenerate -m "Initial database schema"
-```
-Apply migrations to PostgreSQL:
-```bash
 alembic upgrade head
-```
-Rollback the last migration:
-```bash
-alembic downgrade -1
 ```
 
 ### 7. Run the Application
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
-Interactive API documentation will be available at:
+Interactive API documentation:
 - Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
 - ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
-- Health Probe: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
-- Database Health Probe: [http://localhost:8000/api/v1/health/db](http://localhost:8000/api/v1/health/db)
 
 ---
 
 ## 🧪 Quality Assurance & Tooling
 
-### Run Linter & Formatter (Ruff)
 ```bash
+# Run Linter & Formatter (Ruff)
 ruff check .
 ruff format --check .
-```
 
-### Run Type Checking (Mypy)
-```bash
+# Run Type Checking (Mypy)
 mypy app tests
-```
 
-### Run Test Suite (Pytest)
-```bash
+# Run Test Suite (Pytest)
 pytest -v
 ```
 
@@ -180,7 +206,7 @@ pytest -v
 - [x] **Phase 1:** Architecture Design (`DESIGN.md`, ER Diagram, API design, assumptions)
 - [x] **Phase 2:** Database Design (SQLAlchemy models, relationships, indexes, check constraints)
 - [x] **Phase 3:** Database Configuration (AsyncEngine, session management, connection pool, Alembic, environment variables)
-- [ ] **Phase 4:** Authentication Placeholder (Simple Member and Staff roles)
+- [x] **Phase 4 (Auth):** JWT Authentication & Authorization (Register, login, refresh, me, RBAC dependencies, password hashing)
 - [ ] **Phase 5:** Court Management (Venue model, Court model, Availability model)
 - [ ] **Phase 6:** Booking Hold System (POST /holds, hold expiration, concurrency protection)
 - [ ] **Phase 7:** Booking Confirmation (POST /holds/{id}/confirm, idempotency, transactions)
