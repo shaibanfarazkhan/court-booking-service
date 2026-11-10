@@ -16,7 +16,6 @@ class UserRegisterRequest(BaseModel):
     password: str = Field(
         ...,
         min_length=8,
-        max_length=72,
         description=(
             "Password between 8 and 72 bytes with at least one letter and one number"
         ),
@@ -51,7 +50,7 @@ class UserLoginRequest(BaseModel):
     """Payload for authenticating and obtaining tokens."""
 
     email: str = Field(..., max_length=255)
-    password: str = Field(..., min_length=1, max_length=72)
+    password: str = Field(..., min_length=1)
 
     @field_validator("email")
     @classmethod

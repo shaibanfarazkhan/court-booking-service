@@ -66,9 +66,9 @@ except ImportError:
                 return False
 
     except Exception:
-        # Pure Python PBKDF2-HMAC-SHA256 fallback when neither bcrypt nor passlib is installed
+        # PBKDF2-HMAC-SHA256 fallback when bcrypt and passlib are unavailable.
         def hash_password(password: str) -> str:
-            """Hash a plain text password using PBKDF2-HMAC-SHA256 with 100,000 rounds."""
+            """Hash a password with PBKDF2-HMAC-SHA256 (100,000 rounds)."""
             pwd_bytes = password.encode("utf-8")
             if len(pwd_bytes) > 72:
                 raise ValueError(
