@@ -31,3 +31,15 @@ class UserNotFoundError(DomainException):
 
 class InsufficientPermissionsError(DomainException):
     """Raised when a user lacks the required role or privileges."""
+
+
+class ResourceNotFoundError(DomainException):
+    """Raised when a venue, court, or availability record does not exist."""
+
+
+class DuplicateAvailabilityError(DomainException):
+    """Raised when a court already has the requested weekly time window."""
+
+
+class ResourceConflictError(DomainException):
+    """Raised when a resource conflicts with an existing database record."""

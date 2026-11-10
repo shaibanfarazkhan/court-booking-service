@@ -13,12 +13,13 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import CourtType, SurfaceType
 
 if TYPE_CHECKING:
+    from app.models.availability import Availability
     from app.models.booking import Booking
     from app.models.court_image import CourtImage
     from app.models.sport import Sport
@@ -63,6 +64,21 @@ class Court(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         default=True,
         nullable=False,
     )
+    active = synonym("is_active")
+
+    @property
+    def indoor(self) -> bool:
+        """Expose the enclosure as a boolean for court management clients."""
+        return self.court_type == CourtType.INDOOR
+
+    @indoor.setter
+    def indoor(self, value: bool) -> None:
+        self.court_type = CourtType.INDOOR if value else CourtType.OUTDOOR
+
+    @property
+    def sport_type(self) -> str:
+        """Expose the normalized sport's display name."""
+        return self.sport.name
 
     # Relationships
     venue: Mapped["Venue"] = relationship(
@@ -89,6 +105,12 @@ class Court(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     bookings: Mapped[list["Booking"]] = relationship(
         "Booking",
         back_populates="court",
+        lazy="selectin",
+    )
+    availability: Mapped[list["Availability"]] = relationship(
+        "Availability",
+        back_populates="court",
+        cascade="all, delete-orphan",
         lazy="selectin",
     )
 

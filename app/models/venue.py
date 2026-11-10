@@ -28,6 +28,9 @@ class Venue(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     city: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     state: Mapped[str] = mapped_column(String(100), nullable=False)
     postal_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    country: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="India", server_default="India"
+    )
     latitude: Mapped[Decimal | None] = mapped_column(
         Numeric(9, 6),
         nullable=True,

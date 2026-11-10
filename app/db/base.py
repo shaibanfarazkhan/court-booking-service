@@ -2,6 +2,7 @@
 
 from app.models import (
     Admin,
+    Availability,
     Base,
     Booking,
     Court,
@@ -15,6 +16,7 @@ from app.models import (
 
 __all__ = [
     "Admin",
+    "Availability",
     "Base",
     "Booking",
     "Court",

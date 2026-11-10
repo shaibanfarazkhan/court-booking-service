@@ -1,5 +1,6 @@
 from app.models import (
     Admin,
+    Availability,
     Base,
     Booking,
     Court,
@@ -20,6 +21,7 @@ def test_registered_metadata_tables() -> None:
         "venues",
         "sports",
         "courts",
+        "availabilities",
         "court_images",
         "time_slots",
         "bookings",
@@ -27,6 +29,7 @@ def test_registered_metadata_tables() -> None:
     }
     registered_tables = set(Base.metadata.tables.keys())
     assert expected_tables.issubset(registered_tables)
+    assert Availability.__tablename__ == "availabilities"
 
 
 def test_entity_relationships_declared() -> None:
