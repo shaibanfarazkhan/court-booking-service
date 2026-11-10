@@ -41,6 +41,7 @@ class BookingStatus(enum.StrEnum):
     HELD = "HELD"
     CONFIRMED = "CONFIRMED"
     CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"
     COMPLETED = "COMPLETED"
 
 

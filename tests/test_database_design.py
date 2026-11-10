@@ -61,9 +61,11 @@ def test_table_unique_constraints() -> None:
     }
     assert "uq_time_slots_court_start" in slot_uqs
 
-    # Booking 1:1 on time_slot_id
+    # Booking history is indexed by slot but not unique, allowing expired slots to
+    # be held again without discarding their previous booking records.
     time_slot_col = Booking.__table__.columns["time_slot_id"]
-    assert time_slot_col.unique is True
+    assert time_slot_col.unique is not True
+    assert time_slot_col.index is True
 
 
 def test_foreign_key_deletion_rules() -> None:

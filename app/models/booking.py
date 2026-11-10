@@ -15,7 +15,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import BookingStatus
@@ -53,7 +53,6 @@ class Booking(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     time_slot_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("time_slots.id", ondelete="RESTRICT"),
-        unique=True,
         nullable=False,
         index=True,
     )
@@ -72,6 +71,7 @@ class Booking(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         nullable=True,
         index=True,
     )
+    expires_at = synonym("hold_expires_at")
     confirmed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
@@ -112,7 +112,7 @@ class Booking(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     time_slot: Mapped["TimeSlot"] = relationship(
         "TimeSlot",
-        back_populates="booking",
+        back_populates="bookings",
     )
     payments: Mapped[list["Payment"]] = relationship(
         "Payment",

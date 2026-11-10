@@ -1,0 +1,58 @@
+"""Business logic for acquiring and managing temporary booking holds."""
+
+import uuid
+from datetime import UTC, datetime, timedelta
+
+from app.db.session import AsyncSession
+from app.models.booking import Booking
+from app.repositories.booking_repository import BookingRepository
+from app.schemas.bookings import BookingHoldRequest
+
+HOLD_DURATION = timedelta(minutes=15)
+
+
+class BookingService:
+    """Coordinate booking operations and enforce hold duration rules."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.repository = BookingRepository(session)
+
+    async def create_hold(
+        self, user_id: uuid.UUID, request: BookingHoldRequest
+    ) -> Booking:
+        """Expire old holds and atomically acquire the requested time slot."""
+        now = datetime.now(UTC)
+        await self.repository.expire_old_holds(now)
+        return await self.repository.create_hold(
+            user_id=user_id,
+            time_slot_id=request.time_slot_id,
+            booking_reference=uuid.uuid4().hex[:20].upper(),
+            now=now,
+            hold_expires_at=now + HOLD_DURATION,
+        )
+
+    async def expire_old_holds(self) -> int:
+        """Expire elapsed holds in a bounded batch."""
+        return await self.repository.expire_old_holds(datetime.now(UTC))
+
+    async def confirm_booking(
+        self, booking_id: uuid.UUID, user_id: uuid.UUID
+    ) -> Booking:
+        """Confirm an owned hold before its expiration time."""
+        return await self.repository.confirm_booking(
+            booking_id, user_id, datetime.now(UTC)
+        )
+
+    async def cancel_booking(
+        self, booking_id: uuid.UUID, user_id: uuid.UUID
+    ) -> Booking:
+        """Cancel an owned confirmed booking."""
+        return await self.repository.cancel_booking(
+            booking_id, user_id, datetime.now(UTC)
+        )
+
+    async def list_user_bookings(
+        self, user_id: uuid.UUID, skip: int, limit: int
+    ) -> list[Booking]:
+        """List the authenticated user's bookings with pagination."""
+        return await self.repository.list_user_bookings(user_id, skip, limit)

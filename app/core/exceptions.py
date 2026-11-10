@@ -43,3 +43,23 @@ class DuplicateAvailabilityError(DomainException):
 
 class ResourceConflictError(DomainException):
     """Raised when a resource conflicts with an existing database record."""
+
+
+class BookingNotFoundError(DomainException):
+    """Raised when a booking does not exist or is not owned by the caller."""
+
+
+class SlotUnavailableError(DomainException):
+    """Raised when a time slot is not available for a new hold."""
+
+
+class DuplicateActiveHoldError(DomainException):
+    """Raised when a user already holds the requested time slot."""
+
+
+class BookingStateError(DomainException):
+    """Raised when a booking cannot transition from its current state."""
+
+
+class BookingHoldExpiredError(DomainException):
+    """Raised when a user tries to confirm an expired hold."""

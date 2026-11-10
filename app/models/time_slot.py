@@ -68,11 +68,16 @@ class TimeSlot(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         "Court",
         back_populates="time_slots",
     )
-    booking: Mapped["Booking | None"] = relationship(
+    bookings: Mapped[list["Booking"]] = relationship(
         "Booking",
         back_populates="time_slot",
-        uselist=False,
+        lazy="selectin",
     )
+
+    @property
+    def booking(self) -> "Booking | None":
+        """Return the latest booking for compatibility with existing callers."""
+        return max(self.bookings, key=lambda booking: booking.created_at, default=None)
 
     __table_args__ = (
         UniqueConstraint("court_id", "start_time", name="uq_time_slots_court_start"),
