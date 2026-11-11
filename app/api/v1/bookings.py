@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
 from app.api.dependencies import require_member
@@ -65,10 +65,15 @@ async def confirm_booking(
     booking_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_member),
+    idempotency_key: str | None = Header(
+        default=None, alias="Idempotency-Key", min_length=1, max_length=64
+    ),
 ) -> BookingResponse | JSONResponse:
     """Confirm an unexpired hold; persist expiry before returning HTTP 410."""
     try:
-        return await BookingService(db).confirm_booking(booking_id, current_user.id)
+        return await BookingService(db).confirm_booking(
+            booking_id, current_user.id, idempotency_key
+        )
     except BookingHoldExpiredError as exc:
         return JSONResponse(status_code=410, content={"detail": exc.message})
     except (BookingNotFoundError, ResourceNotFoundError, BookingStateError) as exc:

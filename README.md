@@ -209,7 +209,7 @@ pytest -v
 - [x] **Phase 4 (Auth):** JWT Authentication & Authorization (Register, login, refresh, me, RBAC dependencies, password hashing)
 - [x] **Phase 5:** Court Management (Venue model, Court model, Availability model)
 - [x] **Phase 6:** Booking Hold System (POST /holds, hold expiration, concurrency protection)
-- [ ] **Phase 7:** Booking Confirmation (POST /holds/{id}/confirm, idempotency, transactions)
+- [x] **Phase 7:** Booking Confirmation (POST /holds/{id}/confirm, idempotency, transactions)
 - [ ] **Phase 8:** Booking Cancellation (Refund logic, 24-hour rule)
 - [ ] **Phase 9:** Recurring Bookings (Weekly recurring bookings, conflict detection)
 - [ ] **Phase 10:** Availability API (GET /courts/{id}/availability)

@@ -36,11 +36,14 @@ class BookingService:
         return await self.repository.expire_old_holds(datetime.now(UTC))
 
     async def confirm_booking(
-        self, booking_id: uuid.UUID, user_id: uuid.UUID
+        self,
+        booking_id: uuid.UUID,
+        user_id: uuid.UUID,
+        idempotency_key: str | None = None,
     ) -> Booking:
         """Confirm an owned hold before its expiration time."""
         return await self.repository.confirm_booking(
-            booking_id, user_id, datetime.now(UTC)
+            booking_id, user_id, datetime.now(UTC), idempotency_key
         )
 
     async def cancel_booking(

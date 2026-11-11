@@ -105,7 +105,11 @@ class BookingRepository:
         return expired_count
 
     async def confirm_booking(
-        self, booking_id: uuid.UUID, user_id: uuid.UUID, now: datetime
+        self,
+        booking_id: uuid.UUID,
+        user_id: uuid.UUID,
+        now: datetime,
+        idempotency_key: str | None = None,
     ) -> Booking:
         """Confirm an owned, unexpired hold while locking its slot and booking."""
         booking = await self._get_owned_booking(booking_id, user_id)
@@ -113,6 +117,13 @@ class BookingRepository:
         if slot is None:
             raise ResourceNotFoundError("Time slot not found.")
         booking = await self._lock_booking(booking_id, user_id)
+
+        # The booking row lock serializes retries. A matching key identifies a
+        # retry of the successful transition and returns its stored result.
+        if booking.status == BookingStatus.CONFIRMED:
+            if idempotency_key and booking.idempotency_key == idempotency_key:
+                return booking
+            raise BookingStateError("Only active holds can be confirmed.")
 
         if booking.status != BookingStatus.HELD:
             raise BookingStateError("Only active holds can be confirmed.")
@@ -124,6 +135,9 @@ class BookingRepository:
             raise BookingHoldExpiredError("The booking hold has expired.")
         if slot.status != SlotStatus.HELD:
             raise BookingStateError("The held time slot is no longer held.")
+
+        if idempotency_key is not None:
+            booking.idempotency_key = idempotency_key
 
         booking.status = BookingStatus.CONFIRMED
         booking.confirmed_at = now

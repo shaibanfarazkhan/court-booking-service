@@ -263,6 +263,74 @@ def test_repository_confirm_booking_updates_booking_and_slot() -> None:
     assert session.statements[2]._for_update_arg is not None
 
 
+def test_repository_confirmation_retry_with_same_key_returns_confirmed_booking() -> (
+    None
+):
+    now = datetime.now(UTC)
+    slot = fake_slot(SlotStatus.BOOKED)
+    booking = fake_booking(slot, status=BookingStatus.CONFIRMED)
+    booking.idempotency_key = "confirm-request-1"
+    session = FakeSession(
+        [
+            FakeResult(scalar=booking),
+            FakeResult(scalar=slot),
+            FakeResult(scalar=booking),
+        ]
+    )
+
+    result = run(
+        BookingRepository(session).confirm_booking(
+            booking.id, booking.user_id, now, "confirm-request-1"
+        )
+    )
+
+    assert result is booking
+    assert booking.status == BookingStatus.CONFIRMED
+    session.flush.assert_not_awaited()
+
+
+def test_repository_confirmation_retry_with_different_key_is_rejected() -> None:
+    now = datetime.now(UTC)
+    slot = fake_slot(SlotStatus.BOOKED)
+    booking = fake_booking(slot, status=BookingStatus.CONFIRMED)
+    booking.idempotency_key = "original-key"
+    session = FakeSession(
+        [
+            FakeResult(scalar=booking),
+            FakeResult(scalar=slot),
+            FakeResult(scalar=booking),
+        ]
+    )
+
+    with pytest.raises(BookingStateError):
+        run(
+            BookingRepository(session).confirm_booking(
+                booking.id, booking.user_id, now, "different-key"
+            )
+        )
+
+
+def test_repository_stores_key_as_part_of_successful_transition() -> None:
+    now = datetime.now(UTC)
+    slot = fake_slot(SlotStatus.HELD, now + HOLD_DURATION)
+    booking = fake_booking(slot, hold_expires_at=now + HOLD_DURATION)
+    session = FakeSession(
+        [
+            FakeResult(scalar=booking),
+            FakeResult(scalar=slot),
+            FakeResult(scalar=booking),
+        ]
+    )
+
+    run(
+        BookingRepository(session).confirm_booking(
+            booking.id, booking.user_id, now, "new-key"
+        )
+    )
+
+    assert booking.idempotency_key == "new-key"
+
+
 def test_repository_expired_confirmation_persists_expiration_transition() -> None:
     now = datetime.now(UTC)
     slot = fake_slot(SlotStatus.HELD, now - timedelta(seconds=1))
@@ -387,6 +455,33 @@ def test_confirm_api_returns_410_response_after_expiration() -> None:
         booking_api.BookingService = original
     assert isinstance(response, JSONResponse)
     assert response.status_code == 410
+
+
+def test_confirm_api_passes_idempotency_key_to_service() -> None:
+    user = SimpleNamespace(id=uuid.uuid4())
+    booking_id = uuid.uuid4()
+    service = BookingService(AsyncMock())
+    booking = SimpleNamespace(status=BookingStatus.CONFIRMED)
+    service.confirm_booking = AsyncMock(return_value=booking)
+    original = BookingService
+
+    class ServiceFactory:
+        def __new__(cls, _session):
+            return service
+
+    import app.api.v1.bookings as booking_api
+
+    booking_api.BookingService = ServiceFactory
+    try:
+        result = run(
+            confirm_booking_endpoint(
+                booking_id, AsyncMock(), user, idempotency_key="retry-key"
+            )
+        )
+    finally:
+        booking_api.BookingService = original
+    assert result is booking
+    service.confirm_booking.assert_awaited_once_with(booking_id, user.id, "retry-key")
 
 
 def test_cancel_api_returns_booking() -> None:
