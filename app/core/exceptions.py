@@ -75,3 +75,7 @@ class CancellationWindowError(DomainException):
 
 class IdempotencyConflictError(DomainException):
     """Raised when an idempotency key is reused with a different request."""
+
+
+class PricingRuleOverlapError(DomainException):
+    """Raised when active rules of the same type overlap in scope."""

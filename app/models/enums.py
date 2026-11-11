@@ -52,6 +52,33 @@ class RecurrenceType(enum.StrEnum):
     WEEKLY = "WEEKLY"
 
 
+class PricingRuleType(enum.StrEnum):
+    """Pricing condition represented by a configurable rule."""
+
+    MANUAL_OVERRIDE = "MANUAL_OVERRIDE"
+    HOLIDAY = "HOLIDAY"
+    PEAK = "PEAK"
+    WEEKEND = "WEEKEND"
+    OFF_PEAK = "OFF_PEAK"
+    PROMOTION = "PROMOTION"
+
+
+class PricingEffect(enum.StrEnum):
+    """How a rule changes the current hourly price."""
+
+    OVERRIDE = "OVERRIDE"
+    SURCHARGE = "SURCHARGE"
+    DISCOUNT = "DISCOUNT"
+
+
+class PricingValueType(enum.StrEnum):
+    """Unit used by a pricing rule's value."""
+
+    FIXED_PRICE = "FIXED_PRICE"
+    AMOUNT = "AMOUNT"
+    PERCENTAGE = "PERCENTAGE"
+
+
 class PaymentStatus(enum.StrEnum):
     """Financial transaction settlement status."""
 

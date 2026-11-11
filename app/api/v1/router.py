@@ -5,6 +5,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.availability import router as availability_router
 from app.api.v1.bookings import router as bookings_router
 from app.api.v1.courts import router as courts_router
+from app.api.v1.pricing import router as pricing_router
 from app.db.database import check_database_connection
 
 api_router = APIRouter(prefix="/v1")
@@ -14,6 +15,7 @@ api_router.include_router(auth_router)
 api_router.include_router(availability_router)
 api_router.include_router(courts_router)
 api_router.include_router(bookings_router)
+api_router.include_router(pricing_router)
 
 
 @api_router.get("/health", tags=["Health"])
