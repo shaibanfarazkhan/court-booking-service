@@ -80,6 +80,12 @@ class Booking(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         DateTime(timezone=True),
         nullable=True,
     )
+    refund_eligible: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="false",
+        nullable=False,
+    )
     cancellation_reason: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,

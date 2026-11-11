@@ -5,10 +5,12 @@ from datetime import UTC, datetime, timedelta
 
 from app.db.session import AsyncSession
 from app.models.booking import Booking
+from app.models.enums import UserRole
 from app.repositories.booking_repository import BookingRepository
 from app.schemas.bookings import BookingHoldRequest
 
 HOLD_DURATION = timedelta(minutes=15)
+CANCELLATION_NOTICE = timedelta(hours=24)
 
 
 class BookingService:
@@ -47,11 +49,19 @@ class BookingService:
         )
 
     async def cancel_booking(
-        self, booking_id: uuid.UUID, user_id: uuid.UUID
+        self,
+        booking_id: uuid.UUID,
+        user_id: uuid.UUID,
+        role: UserRole = UserRole.MEMBER,
     ) -> Booking:
-        """Cancel an owned confirmed booking."""
+        """Cancel an eligible booking and flag its payment for refund handling."""
+        now = datetime.now(UTC)
         return await self.repository.cancel_booking(
-            booking_id, user_id, datetime.now(UTC)
+            booking_id,
+            user_id,
+            now,
+            now + CANCELLATION_NOTICE,
+            is_admin=role == UserRole.ADMIN,
         )
 
     async def list_user_bookings(

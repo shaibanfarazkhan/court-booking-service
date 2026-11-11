@@ -9,7 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import (
     BookingHoldExpiredError,
     BookingNotFoundError,
+    BookingOwnershipError,
     BookingStateError,
+    CancellationWindowError,
     DuplicateActiveHoldError,
     ResourceNotFoundError,
     SlotUnavailableError,
@@ -148,19 +150,38 @@ class BookingRepository:
         return booking
 
     async def cancel_booking(
-        self, booking_id: uuid.UUID, user_id: uuid.UUID, now: datetime
+        self,
+        booking_id: uuid.UUID,
+        user_id: uuid.UUID,
+        now: datetime,
+        cancellation_cutoff: datetime,
+        is_admin: bool = False,
     ) -> Booking:
-        """Cancel an owned confirmed booking and release its time slot."""
-        booking = await self._get_owned_booking(booking_id, user_id)
+        """Atomically cancel an eligible booking and release its time slot."""
+        result = await self.session.execute(
+            select(Booking).where(Booking.id == booking_id)
+        )
+        booking = result.scalar_one_or_none()
+        if booking is None:
+            raise BookingNotFoundError("Booking not found.")
+        if booking.user_id != user_id and not is_admin:
+            raise BookingOwnershipError("You are not allowed to cancel this booking.")
         slot = await self._lock_slot(booking.time_slot_id)
         if slot is None:
             raise ResourceNotFoundError("Time slot not found.")
-        booking = await self._lock_booking(booking_id, user_id)
+        booking = await self._lock_booking_by_id(booking_id)
+        if booking.user_id != user_id and not is_admin:
+            raise BookingOwnershipError("You are not allowed to cancel this booking.")
         if booking.status != BookingStatus.CONFIRMED:
             raise BookingStateError("Only confirmed bookings can be cancelled.")
+        if slot.start_time < cancellation_cutoff:
+            raise CancellationWindowError(
+                "Bookings can only be cancelled at least 24 hours before start."
+            )
 
         booking.status = BookingStatus.CANCELLED
         booking.cancelled_at = now
+        booking.refund_eligible = True
         slot.status = SlotStatus.AVAILABLE
         slot.hold_expires_at = None
         await self.session.flush()
@@ -211,6 +232,15 @@ class BookingRepository:
             select(Booking)
             .where(Booking.id == booking_id, Booking.user_id == user_id)
             .with_for_update()
+        )
+        booking = result.scalar_one_or_none()
+        if booking is None:
+            raise BookingNotFoundError("Booking not found.")
+        return booking
+
+    async def _lock_booking_by_id(self, booking_id: uuid.UUID) -> Booking:
+        result = await self.session.execute(
+            select(Booking).where(Booking.id == booking_id).with_for_update()
         )
         booking = result.scalar_one_or_none()
         if booking is None:

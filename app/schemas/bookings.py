@@ -30,6 +30,7 @@ class BookingResponse(BaseModel):
     hold_expires_at: datetime | None
     confirmed_at: datetime | None
     cancelled_at: datetime | None
+    refund_eligible: bool
     created_at: datetime
     updated_at: datetime
 

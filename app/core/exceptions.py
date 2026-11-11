@@ -63,3 +63,11 @@ class BookingStateError(DomainException):
 
 class BookingHoldExpiredError(DomainException):
     """Raised when a user tries to confirm an expired hold."""
+
+
+class BookingOwnershipError(DomainException):
+    """Raised when the caller is neither the booking owner nor an admin."""
+
+
+class CancellationWindowError(DomainException):
+    """Raised when a booking is too close to its start time to cancel."""

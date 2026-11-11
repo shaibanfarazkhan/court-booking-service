@@ -9,7 +9,9 @@ from app.api.dependencies import require_member
 from app.core.exceptions import (
     BookingHoldExpiredError,
     BookingNotFoundError,
+    BookingOwnershipError,
     BookingStateError,
+    CancellationWindowError,
     DuplicateActiveHoldError,
     ResourceNotFoundError,
     SlotUnavailableError,
@@ -31,6 +33,10 @@ def _raise_booking_error(error: Exception) -> None:
         raise HTTPException(status_code=404, detail=error.message) from error
     if isinstance(error, BookingHoldExpiredError):
         raise HTTPException(status_code=410, detail=error.message) from error
+    if isinstance(error, BookingOwnershipError):
+        raise HTTPException(status_code=403, detail=error.message) from error
+    if isinstance(error, CancellationWindowError):
+        raise HTTPException(status_code=409, detail=error.message) from error
     if isinstance(
         error,
         (BookingStateError, DuplicateActiveHoldError, SlotUnavailableError),
@@ -88,8 +94,16 @@ async def cancel_booking(
 ) -> BookingResponse:
     """Cancel an owned confirmed booking and release its slot."""
     try:
-        return await BookingService(db).cancel_booking(booking_id, current_user.id)
-    except (BookingNotFoundError, ResourceNotFoundError, BookingStateError) as exc:
+        return await BookingService(db).cancel_booking(
+            booking_id, current_user.id, current_user.role
+        )
+    except (
+        BookingNotFoundError,
+        BookingOwnershipError,
+        CancellationWindowError,
+        ResourceNotFoundError,
+        BookingStateError,
+    ) as exc:
         _raise_booking_error(exc)
 
 

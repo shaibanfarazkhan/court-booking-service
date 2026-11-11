@@ -31,13 +31,15 @@ from app.api.v1.bookings import (
 from app.core.exceptions import (
     BookingHoldExpiredError,
     BookingNotFoundError,
+    BookingOwnershipError,
     BookingStateError,
+    CancellationWindowError,
     DuplicateActiveHoldError,
     ResourceNotFoundError,
     SlotUnavailableError,
 )
 from app.models.booking import Booking
-from app.models.enums import BookingStatus, SlotStatus
+from app.models.enums import BookingStatus, SlotStatus, UserRole
 from app.models.time_slot import TimeSlot
 from app.repositories.booking_repository import BookingRepository
 from app.schemas.bookings import BookingHoldRequest
@@ -90,13 +92,16 @@ class FakeSession:
 def fake_slot(
     status: SlotStatus = SlotStatus.AVAILABLE,
     expires_at: datetime | None = None,
+    start_time: datetime | None = None,
 ) -> SimpleNamespace:
+    start_time = start_time or datetime.now(UTC) + timedelta(days=3)
     return SimpleNamespace(
         id=uuid.uuid4(),
         court_id=uuid.uuid4(),
         price=Decimal("42.50"),
         status=status,
         hold_expires_at=expires_at,
+        start_time=start_time,
     )
 
 
@@ -116,6 +121,7 @@ def fake_booking(
         hold_expires_at=hold_expires_at,
         confirmed_at=None,
         cancelled_at=None,
+        refund_eligible=False,
     )
 
 
@@ -390,12 +396,152 @@ def test_repository_cancel_booking_releases_slot() -> None:
     )
 
     cancelled = run(
-        BookingRepository(session).cancel_booking(booking.id, booking.user_id, now)
+        BookingRepository(session).cancel_booking(
+            booking.id,
+            booking.user_id,
+            now,
+            now + timedelta(hours=24),
+        )
     )
 
     assert cancelled.status == BookingStatus.CANCELLED
     assert cancelled.cancelled_at == now
+    assert cancelled.refund_eligible is True
     assert slot.status == SlotStatus.AVAILABLE
+    assert len(session.statements) == 3
+    assert all(
+        statement._for_update_arg is not None for statement in session.statements[1:]
+    )
+
+
+def test_repository_rejects_duplicate_cancellation() -> None:
+    now = datetime.now(UTC)
+    slot = fake_slot(SlotStatus.AVAILABLE)
+    booking = fake_booking(slot, status=BookingStatus.CANCELLED)
+    session = FakeSession(
+        [
+            FakeResult(scalar=booking),
+            FakeResult(scalar=slot),
+            FakeResult(scalar=booking),
+        ]
+    )
+
+    with pytest.raises(BookingStateError):
+        run(
+            BookingRepository(session).cancel_booking(
+                booking.id, booking.user_id, now, now + timedelta(hours=24)
+            )
+        )
+
+
+@pytest.mark.parametrize("state", [BookingStatus.HELD, BookingStatus.EXPIRED])
+def test_repository_rejects_non_confirmed_cancellation(
+    state: BookingStatus,
+) -> None:
+    now = datetime.now(UTC)
+    slot = fake_slot(SlotStatus.HELD)
+    booking = fake_booking(slot, status=state)
+    session = FakeSession(
+        [
+            FakeResult(scalar=booking),
+            FakeResult(scalar=slot),
+            FakeResult(scalar=booking),
+        ]
+    )
+
+    with pytest.raises(BookingStateError):
+        run(
+            BookingRepository(session).cancel_booking(
+                booking.id, booking.user_id, now, now + timedelta(hours=24)
+            )
+        )
+
+
+def test_repository_rejects_cancellation_inside_twenty_four_hours() -> None:
+    now = datetime.now(UTC)
+    slot = fake_slot(
+        SlotStatus.BOOKED, start_time=now + timedelta(hours=23, minutes=59)
+    )
+    booking = fake_booking(slot, status=BookingStatus.CONFIRMED)
+    session = FakeSession(
+        [
+            FakeResult(scalar=booking),
+            FakeResult(scalar=slot),
+            FakeResult(scalar=booking),
+        ]
+    )
+
+    with pytest.raises(CancellationWindowError):
+        run(
+            BookingRepository(session).cancel_booking(
+                booking.id, booking.user_id, now, now + timedelta(hours=24)
+            )
+        )
+    assert booking.status == BookingStatus.CONFIRMED
+    assert slot.status == SlotStatus.BOOKED
+
+
+def test_repository_allows_admin_to_cancel_another_users_booking() -> None:
+    now = datetime.now(UTC)
+    slot = fake_slot(SlotStatus.BOOKED)
+    booking = fake_booking(slot, status=BookingStatus.CONFIRMED)
+    admin_id = uuid.uuid4()
+    session = FakeSession(
+        [
+            FakeResult(scalar=booking),
+            FakeResult(scalar=slot),
+            FakeResult(scalar=booking),
+        ]
+    )
+
+    result = run(
+        BookingRepository(session).cancel_booking(
+            booking.id, admin_id, now, now + timedelta(hours=24), is_admin=True
+        )
+    )
+
+    assert result is booking
+    assert booking.status == BookingStatus.CANCELLED
+
+
+def test_repository_allows_cancellation_exactly_twenty_four_hours_before_start() -> (
+    None
+):
+    now = datetime.now(UTC)
+    slot = fake_slot(SlotStatus.BOOKED, start_time=now + timedelta(hours=24))
+    booking = fake_booking(slot, status=BookingStatus.CONFIRMED)
+    session = FakeSession(
+        [
+            FakeResult(scalar=booking),
+            FakeResult(scalar=slot),
+            FakeResult(scalar=booking),
+        ]
+    )
+
+    result = run(
+        BookingRepository(session).cancel_booking(
+            booking.id, booking.user_id, now, now + timedelta(hours=24)
+        )
+    )
+
+    assert result.status == BookingStatus.CANCELLED
+
+
+def test_repository_rejects_non_owner_cancellation() -> None:
+    now = datetime.now(UTC)
+    slot = fake_slot(SlotStatus.BOOKED)
+    booking = fake_booking(slot, status=BookingStatus.CONFIRMED)
+    session = FakeSession([FakeResult(scalar=booking)])
+
+    with pytest.raises(BookingOwnershipError):
+        run(
+            BookingRepository(session).cancel_booking(
+                booking.id,
+                uuid.uuid4(),
+                now,
+                now + timedelta(hours=24),
+            )
+        )
 
 
 def test_repository_list_user_bookings_applies_pagination() -> None:
@@ -485,7 +631,7 @@ def test_confirm_api_passes_idempotency_key_to_service() -> None:
 
 
 def test_cancel_api_returns_booking() -> None:
-    user = SimpleNamespace(id=uuid.uuid4())
+    user = SimpleNamespace(id=uuid.uuid4(), role=UserRole.MEMBER)
     db = AsyncMock()
     booking = SimpleNamespace(status=BookingStatus.CANCELLED)
     service = BookingService(db)
@@ -506,12 +652,40 @@ def test_cancel_api_returns_booking() -> None:
     assert response is booking
 
 
+def test_admin_cancel_api_passes_admin_role_to_service() -> None:
+    admin = SimpleNamespace(id=uuid.uuid4(), role=UserRole.ADMIN)
+    booking_id = uuid.uuid4()
+    service = BookingService(AsyncMock())
+    booking = SimpleNamespace(status=BookingStatus.CANCELLED)
+    service.cancel_booking = AsyncMock(return_value=booking)
+    original = BookingService
+
+    class ServiceFactory:
+        def __new__(cls, _session):
+            return service
+
+    import app.api.v1.bookings as booking_api
+
+    booking_api.BookingService = ServiceFactory
+    try:
+        result = run(cancel_booking_endpoint(booking_id, AsyncMock(), admin))
+    finally:
+        booking_api.BookingService = original
+
+    assert result is booking
+    service.cancel_booking.assert_awaited_once_with(
+        booking_id, admin.id, UserRole.ADMIN
+    )
+
+
 def test_booking_errors_map_to_expected_http_statuses() -> None:
     errors = [
         (BookingNotFoundError("missing"), 404),
         (ResourceNotFoundError("missing"), 404),
         (BookingHoldExpiredError("expired"), 410),
         (BookingStateError("state"), 409),
+        (BookingOwnershipError("forbidden"), 403),
+        (CancellationWindowError("too late"), 409),
         (DuplicateActiveHoldError("duplicate"), 409),
         (SlotUnavailableError("unavailable"), 409),
     ]
