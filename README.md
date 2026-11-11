@@ -212,7 +212,7 @@ pytest -v
 - [x] **Phase 7:** Booking Confirmation (POST /holds/{id}/confirm, idempotency, transactions)
 - [x] **Phase 8:** Booking Cancellation (Refund logic, 24-hour rule)
 - [x] **Phase 9:** Recurring Bookings (Daily and weekly recurring bookings, conflict detection)
-- [ ] **Phase 10:** Availability API (GET /courts/{id}/availability)
+- [x] **Phase 10:** Availability API (GET /availability, GET /courts/{id}/availability)
 - [ ] **Phase 11:** Pricing Engine (Peak & off-peak hours)
 - [ ] **Phase 12:** Booking Limits (Maximum 3 active bookings)
 - [ ] **Phase 13:** Reports (Weekly utilization report)

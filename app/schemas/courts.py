@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime, time
 from decimal import Decimal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -17,6 +18,7 @@ class VenueCreate(BaseModel):
     city: str = Field(min_length=1, max_length=100)
     state: str = Field(min_length=1, max_length=100)
     country: str = Field(min_length=1, max_length=100)
+    timezone: str = Field(default="UTC", min_length=1, max_length=64)
     postal_code: str = Field(min_length=1, max_length=20)
     latitude: Decimal | None = Field(default=None, ge=-90, le=90)
     longitude: Decimal | None = Field(default=None, ge=-180, le=180)
@@ -24,6 +26,15 @@ class VenueCreate(BaseModel):
     description: str | None = None
     opening_time: time = time(0, 0)
     closing_time: time = time(23, 59)
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError("timezone must be a valid IANA timezone") from exc
+        return value
 
     @model_validator(mode="after")
     def validate_hours(self) -> "VenueCreate":
@@ -40,6 +51,7 @@ class VenuePatch(BaseModel):
     city: str | None = Field(default=None, min_length=1, max_length=100)
     state: str | None = Field(default=None, min_length=1, max_length=100)
     country: str | None = Field(default=None, min_length=1, max_length=100)
+    timezone: str | None = Field(default=None, min_length=1, max_length=64)
     postal_code: str | None = Field(default=None, min_length=1, max_length=20)
     latitude: Decimal | None = Field(default=None, ge=-90, le=90)
     longitude: Decimal | None = Field(default=None, ge=-180, le=180)
@@ -57,6 +69,17 @@ class VenuePatch(BaseModel):
                 if value is None and field_name not in nullable:
                     raise ValueError(f"{field_name} cannot be null")
         return values
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError("timezone must be a valid IANA timezone") from exc
+        return value
 
     @model_validator(mode="after")
     def validate_hours(self) -> "VenuePatch":
@@ -77,6 +100,7 @@ class VenueResponse(BaseModel):
     city: str
     state: str
     country: str
+    timezone: str
     postal_code: str
     latitude: Decimal | None
     longitude: Decimal | None

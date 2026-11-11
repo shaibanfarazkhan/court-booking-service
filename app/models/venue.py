@@ -31,6 +31,9 @@ class Venue(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     country: Mapped[str] = mapped_column(
         String(100), nullable=False, default="India", server_default="India"
     )
+    timezone: Mapped[str] = mapped_column(
+        String(64), default="UTC", server_default="UTC", nullable=False
+    )
     latitude: Mapped[Decimal | None] = mapped_column(
         Numeric(9, 6),
         nullable=True,

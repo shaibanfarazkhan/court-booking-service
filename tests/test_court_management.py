@@ -251,7 +251,7 @@ def test_routes_apply_admin_write_and_authenticated_read_dependencies() -> None:
         ("PATCH", "/courts/{court_id}"),
         ("DELETE", "/courts/{court_id}"),
         ("POST", "/availability"),
-        ("GET", "/availability"),
+        ("GET", "/availability/windows"),
         ("GET", "/availability/{availability_id}"),
         ("PATCH", "/availability/{availability_id}"),
         ("DELETE", "/availability/{availability_id}"),

@@ -195,7 +195,7 @@ async def create_availability(
         await _raise_conflict(db, "Availability window already exists.", exc)
 
 
-@router.get("/availability", response_model=list[AvailabilityResponse])
+@router.get("/availability/windows", response_model=list[AvailabilityResponse])
 async def list_availability(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
