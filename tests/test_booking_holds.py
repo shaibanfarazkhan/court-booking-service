@@ -701,6 +701,7 @@ def test_booking_routes_require_member_authentication() -> None:
         "/bookings/{booking_id}/confirm",
         "/bookings/{booking_id}/cancel",
         "/bookings/my",
+        "/bookings/recurring",
     }
     for route in router.routes:
         dependencies = {dependency.call for dependency in route.dependant.dependencies}

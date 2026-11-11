@@ -7,12 +7,14 @@ from fastapi.responses import JSONResponse
 
 from app.api.dependencies import require_member
 from app.core.exceptions import (
+    AccountInactiveError,
     BookingHoldExpiredError,
     BookingNotFoundError,
     BookingOwnershipError,
     BookingStateError,
     CancellationWindowError,
     DuplicateActiveHoldError,
+    IdempotencyConflictError,
     ResourceNotFoundError,
     SlotUnavailableError,
 )
@@ -22,8 +24,11 @@ from app.schemas.bookings import (
     BookingHoldRequest,
     BookingListResponse,
     BookingResponse,
+    RecurringBookingRequest,
+    RecurringBookingResponse,
 )
 from app.services.booking_service import BookingService
+from app.services.recurring_booking_service import RecurringBookingService
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
@@ -37,6 +42,12 @@ def _raise_booking_error(error: Exception) -> None:
         raise HTTPException(status_code=403, detail=error.message) from error
     if isinstance(error, CancellationWindowError):
         raise HTTPException(status_code=409, detail=error.message) from error
+    if isinstance(error, AccountInactiveError):
+        raise HTTPException(status_code=403, detail=error.message) from error
+    if isinstance(error, IdempotencyConflictError):
+        raise HTTPException(status_code=409, detail=error.message) from error
+    if isinstance(error, ValueError):
+        raise HTTPException(status_code=422, detail=str(error)) from error
     if isinstance(
         error,
         (BookingStateError, DuplicateActiveHoldError, SlotUnavailableError),
@@ -83,6 +94,30 @@ async def confirm_booking(
     except BookingHoldExpiredError as exc:
         return JSONResponse(status_code=410, content={"detail": exc.message})
     except (BookingNotFoundError, ResourceNotFoundError, BookingStateError) as exc:
+        _raise_booking_error(exc)
+
+
+@router.post(
+    "/recurring",
+    response_model=RecurringBookingResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_recurring_bookings(
+    payload: RecurringBookingRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_member),
+) -> RecurringBookingResponse:
+    """Create eligible daily or weekly confirmed bookings for the member."""
+    try:
+        return await RecurringBookingService(db).create_recurring_bookings(
+            current_user.id, payload
+        )
+    except (
+        AccountInactiveError,
+        IdempotencyConflictError,
+        ResourceNotFoundError,
+        ValueError,
+    ) as exc:
         _raise_booking_error(exc)
 
 

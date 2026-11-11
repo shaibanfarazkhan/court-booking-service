@@ -45,6 +45,13 @@ class BookingStatus(enum.StrEnum):
     COMPLETED = "COMPLETED"
 
 
+class RecurrenceType(enum.StrEnum):
+    """Supported recurring booking patterns."""
+
+    DAILY = "DAILY"
+    WEEKLY = "WEEKLY"
+
+
 class PaymentStatus(enum.StrEnum):
     """Financial transaction settlement status."""
 

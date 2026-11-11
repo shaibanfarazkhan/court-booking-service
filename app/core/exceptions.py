@@ -71,3 +71,7 @@ class BookingOwnershipError(DomainException):
 
 class CancellationWindowError(DomainException):
     """Raised when a booking is too close to its start time to cancel."""
+
+
+class IdempotencyConflictError(DomainException):
+    """Raised when an idempotency key is reused with a different request."""

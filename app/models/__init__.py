@@ -11,11 +11,13 @@ from app.models.enums import (
     CourtType,
     PaymentMethod,
     PaymentStatus,
+    RecurrenceType,
     SlotStatus,
     SurfaceType,
     UserRole,
 )
 from app.models.payment import Payment
+from app.models.recurring_booking_request import RecurringBookingRequest
 from app.models.sport import Sport
 from app.models.time_slot import TimeSlot
 from app.models.user import User
@@ -33,6 +35,8 @@ __all__ = [
     "Payment",
     "PaymentMethod",
     "PaymentStatus",
+    "RecurrenceType",
+    "RecurringBookingRequest",
     "SlotStatus",
     "Sport",
     "SurfaceType",
