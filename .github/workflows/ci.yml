@@ -61,6 +61,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://court_booking:${{ secrets.CI_POSTGRES_PASSWORD || github.run_id }}@127.0.0.1:5432/court_booking_ci
           SECRET_KEY: ${{ secrets.CI_SECRET_KEY || format('ci-only-{0}', github.run_id) }}
         run: |
+          python .github/scripts/prepare_ci_database.py
           python -m alembic upgrade head
           python -m alembic current
 
