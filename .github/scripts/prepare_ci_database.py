@@ -6,9 +6,14 @@ before exercising the checked-in Alembic revisions.
 """
 
 import asyncio
+import sys
+from pathlib import Path
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import create_async_engine
+
+# Python sets sys.path[0] to this script's directory when run from CI.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from app.core.config import settings
 from app.db.base import Base
