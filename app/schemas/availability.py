@@ -15,7 +15,7 @@ AvailabilitySort = Literal["time", "venue", "court"]
 class AvailabilitySlotResponse(BaseModel):
     """Public, minimal representation of an available court time slot."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, title="Available Court Slot")
 
     slot_id: uuid.UUID
     court_id: uuid.UUID
@@ -34,6 +34,8 @@ class AvailabilitySlotResponse(BaseModel):
 
 class AvailabilitySearchResponse(BaseModel):
     """Paginated public availability search results."""
+
+    model_config = ConfigDict(title="Availability Search Results")
 
     items: list[AvailabilitySlotResponse]
     page: int = Field(ge=1)

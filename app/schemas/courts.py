@@ -13,6 +13,25 @@ from app.models.enums import SurfaceType
 class VenueCreate(BaseModel):
     """Fields needed to register a venue."""
 
+    model_config = ConfigDict(
+        title="Venue Creation Request",
+        json_schema_extra={
+            "examples": [
+                {
+                    "name": "Central Sports Club",
+                    "address": "10 Main Road",
+                    "city": "Hyderabad",
+                    "state": "Telangana",
+                    "country": "India",
+                    "timezone": "Asia/Kolkata",
+                    "postal_code": "500001",
+                    "opening_time": "06:00:00",
+                    "closing_time": "22:00:00",
+                }
+            ]
+        },
+    )
+
     name: str = Field(min_length=1, max_length=150)
     address: str = Field(min_length=1, max_length=255)
     city: str = Field(min_length=1, max_length=100)
@@ -45,6 +64,11 @@ class VenueCreate(BaseModel):
 
 class VenuePatch(BaseModel):
     """Fields that can be changed on an existing venue."""
+
+    model_config = ConfigDict(
+        title="Venue Update Request",
+        json_schema_extra={"examples": [{"description": "Updated club facilities"}]},
+    )
 
     name: str | None = Field(default=None, min_length=1, max_length=150)
     address: str | None = Field(default=None, min_length=1, max_length=255)
@@ -92,7 +116,7 @@ class VenuePatch(BaseModel):
 class VenueResponse(BaseModel):
     """Public venue representation."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, title="Venue")
 
     id: uuid.UUID
     name: str
@@ -116,6 +140,22 @@ class VenueResponse(BaseModel):
 class CourtCreate(BaseModel):
     """Fields needed to register a court."""
 
+    model_config = ConfigDict(
+        title="Court Creation Request",
+        json_schema_extra={
+            "examples": [
+                {
+                    "venue_id": "00000000-0000-0000-0000-000000000001",
+                    "name": "Court 1",
+                    "sport_type": "Tennis",
+                    "surface_type": "HARD",
+                    "indoor": False,
+                    "base_price_per_hour": "750.00",
+                }
+            ]
+        },
+    )
+
     venue_id: uuid.UUID
     name: str = Field(min_length=1, max_length=100)
     sport_type: str = Field(min_length=1, max_length=100)
@@ -134,6 +174,13 @@ class CourtCreate(BaseModel):
 
 class CourtPatch(BaseModel):
     """Fields that can be changed on an existing court."""
+
+    model_config = ConfigDict(
+        title="Court Update Request",
+        json_schema_extra={
+            "examples": [{"base_price_per_hour": "800.00", "active": True}]
+        },
+    )
 
     venue_id: uuid.UUID | None = None
     name: str | None = Field(default=None, min_length=1, max_length=100)
@@ -156,7 +203,7 @@ class CourtPatch(BaseModel):
 class CourtResponse(BaseModel):
     """Public court representation."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, title="Court")
 
     id: uuid.UUID
     venue_id: uuid.UUID
@@ -173,6 +220,21 @@ class CourtResponse(BaseModel):
 class AvailabilityCreate(BaseModel):
     """Fields for adding a recurring weekly availability window."""
 
+    model_config = ConfigDict(
+        title="Recurring Availability Request",
+        json_schema_extra={
+            "examples": [
+                {
+                    "court_id": "00000000-0000-0000-0000-000000000002",
+                    "weekday": 0,
+                    "start_time": "09:00:00",
+                    "end_time": "10:00:00",
+                    "available": True,
+                }
+            ]
+        },
+    )
+
     court_id: uuid.UUID
     weekday: int = Field(ge=0, le=6, description="Monday=0 through Sunday=6")
     start_time: time
@@ -188,6 +250,13 @@ class AvailabilityCreate(BaseModel):
 
 class AvailabilityPatch(BaseModel):
     """Fields that can be changed on a weekly availability window."""
+
+    model_config = ConfigDict(
+        title="Availability Update Request",
+        json_schema_extra={
+            "examples": [{"start_time": "10:00:00", "end_time": "11:00:00"}]
+        },
+    )
 
     court_id: uuid.UUID | None = None
     weekday: int | None = Field(default=None, ge=0, le=6)
@@ -206,7 +275,7 @@ class AvailabilityPatch(BaseModel):
 class AvailabilityResponse(BaseModel):
     """Recurring availability representation."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, title="Recurring Availability")
 
     id: uuid.UUID
     court_id: uuid.UUID

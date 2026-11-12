@@ -9,11 +9,36 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class BookingPolicyInput(BaseModel):
     """Complete replacement for global booking limits."""
 
-    daily_limit: int = Field(gt=0, le=100)
-    weekly_limit: int = Field(gt=0, le=500)
-    future_booking_limit: int = Field(gt=0, le=500)
-    min_duration_minutes: int = Field(gt=0, le=1440)
-    max_duration_minutes: int = Field(gt=0, le=1440)
+    model_config = ConfigDict(
+        title="Booking Policy Update",
+        json_schema_extra={
+            "examples": [
+                {
+                    "daily_limit": 3,
+                    "weekly_limit": 8,
+                    "future_booking_limit": 10,
+                    "min_duration_minutes": 30,
+                    "max_duration_minutes": 180,
+                }
+            ]
+        },
+    )
+
+    daily_limit: int = Field(
+        gt=0, le=100, description="Maximum bookings per member per day."
+    )
+    weekly_limit: int = Field(
+        gt=0, le=500, description="Maximum bookings per member per week."
+    )
+    future_booking_limit: int = Field(
+        gt=0, le=500, description="Maximum future active bookings per member."
+    )
+    min_duration_minutes: int = Field(
+        gt=0, le=1440, description="Minimum allowed booking length."
+    )
+    max_duration_minutes: int = Field(
+        gt=0, le=1440, description="Maximum allowed booking length."
+    )
 
     @model_validator(mode="after")
     def validate_duration_range(self) -> "BookingPolicyInput":
@@ -27,7 +52,7 @@ class BookingPolicyInput(BaseModel):
 class BookingPolicyResponse(BaseModel):
     """Active booking policy returned to administrators."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, title="Active Booking Policy")
 
     id: uuid.UUID
     active: bool

@@ -4,7 +4,13 @@ import uuid
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from app.models.enums import BookingStatus, RecurrenceType
 
@@ -12,13 +18,22 @@ from app.models.enums import BookingStatus, RecurrenceType
 class BookingHoldRequest(BaseModel):
     """Request a temporary hold on an available time slot."""
 
-    time_slot_id: uuid.UUID
+    model_config = ConfigDict(
+        title="Booking Hold Request",
+        json_schema_extra={
+            "examples": [{"time_slot_id": "00000000-0000-4000-8000-000000000001"}]
+        },
+    )
+
+    time_slot_id: uuid.UUID = Field(
+        description="UUID of an available time slot to hold."
+    )
 
 
 class BookingResponse(BaseModel):
     """Booking data exposed to its owner."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, title="Booking")
 
     id: uuid.UUID
     booking_reference: str
@@ -38,7 +53,9 @@ class BookingResponse(BaseModel):
 class BookingListResponse(BaseModel):
     """Paginated list of a user's bookings."""
 
-    items: list[BookingResponse]
+    model_config = ConfigDict(title="Booking List")
+
+    items: list[BookingResponse] = Field(description="Bookings on this page.")
     skip: int = Field(ge=0)
     limit: int = Field(ge=1, le=100)
 
@@ -46,14 +63,41 @@ class BookingListResponse(BaseModel):
 class RecurringBookingRequest(BaseModel):
     """Create confirmed bookings on dates matching a daily or weekly pattern."""
 
-    court_id: uuid.UUID
-    start_date: date
-    end_date: date
-    start_time: time
-    end_time: time
-    recurrence_type: RecurrenceType
-    timezone: str = "UTC"
-    idempotency_key: str | None = Field(default=None, min_length=1, max_length=64)
+    model_config = ConfigDict(
+        title="Recurring Booking Request",
+        json_schema_extra={
+            "examples": [
+                {
+                    "court_id": "00000000-0000-4000-8000-000000000002",
+                    "start_date": "2026-12-01",
+                    "end_date": "2026-12-15",
+                    "start_time": "10:00:00",
+                    "end_time": "11:00:00",
+                    "recurrence_type": "WEEKLY",
+                    "timezone": "Asia/Kolkata",
+                    "idempotency_key": "member-series-20261201",
+                }
+            ]
+        },
+    )
+
+    court_id: uuid.UUID = Field(description="Court where occurrences are requested.")
+    start_date: date = Field(description="First eligible local calendar date.")
+    end_date: date = Field(description="Last eligible local calendar date, inclusive.")
+    start_time: time = Field(description="Local start time for each occurrence.")
+    end_time: time = Field(description="Local end time for each occurrence.")
+    recurrence_type: RecurrenceType = Field(
+        description="Occurrence pattern: DAILY or WEEKLY."
+    )
+    timezone: str = Field(
+        default="UTC", description="IANA timezone for the court times."
+    )
+    idempotency_key: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        description="Optional key used to safely retry the same series request.",
+    )
 
     @field_validator("start_time", "end_time")
     @classmethod

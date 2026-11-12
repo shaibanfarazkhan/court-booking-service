@@ -12,6 +12,14 @@ from starlette.responses import Response
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.logging_config import configure_logging
+from app.core.openapi_docs import (
+    API_DESCRIPTION,
+    API_TAGS,
+    CONTACT,
+    LICENSE,
+    SERVERS,
+    build_openapi_schema,
+)
 from app.db.database import (
     check_database_connection,
     close_database_connection,
@@ -68,7 +76,12 @@ def create_application() -> FastAPI:
     """Application factory for Court Booking Service."""
     application = FastAPI(
         title=settings.APP_NAME,
+        description=API_DESCRIPTION,
         version="0.1.0",
+        contact=CONTACT,
+        license_info=LICENSE,
+        openapi_tags=API_TAGS,
+        servers=SERVERS,
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
@@ -116,6 +129,11 @@ def create_application() -> FastAPI:
         return {"status": "healthy"}
 
     application.include_router(api_router, prefix="/api")
+
+    def custom_openapi() -> dict:
+        return build_openapi_schema(application)
+
+    application.openapi = custom_openapi
 
     return application
 

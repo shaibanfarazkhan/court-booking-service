@@ -12,12 +12,42 @@ from app.models.enums import PricingEffect, PricingRuleType, PricingValueType
 class PricingRuleInput(BaseModel):
     """Create or replace a date, time, or weekday-scoped pricing rule."""
 
-    name: str = Field(min_length=1, max_length=120)
-    court_id: uuid.UUID | None = None
-    rule_type: PricingRuleType
-    effect: PricingEffect
-    value_type: PricingValueType
-    value: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
+    model_config = ConfigDict(
+        title="Pricing Rule Request",
+        json_schema_extra={
+            "examples": [
+                {
+                    "name": "Weekend court rate",
+                    "rule_type": "WEEKEND",
+                    "effect": "SURCHARGE",
+                    "value_type": "PERCENTAGE",
+                    "value": "15.00",
+                    "active": True,
+                    "weekdays": [5, 6],
+                }
+            ]
+        },
+    )
+
+    name: str = Field(
+        min_length=1, max_length=120, description="Staff-facing rule name."
+    )
+    court_id: uuid.UUID | None = Field(
+        default=None, description="Optional court scope; null applies globally."
+    )
+    rule_type: PricingRuleType = Field(
+        description="Condition that activates this rule."
+    )
+    effect: PricingEffect = Field(
+        description="Override, surcharge, or discount effect."
+    )
+    value_type: PricingValueType = Field(description="Unit used for the rule value.")
+    value: Decimal = Field(
+        gt=0,
+        max_digits=10,
+        decimal_places=2,
+        description="Positive price or adjustment amount.",
+    )
     priority: int | None = Field(default=None, ge=0, le=10000)
     stackable: bool = False
     active: bool = True
@@ -82,7 +112,7 @@ class PricingRuleInput(BaseModel):
 class PricingRuleResponse(BaseModel):
     """Public representation of an active or inactive pricing rule."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, title="Pricing Rule")
 
     id: uuid.UUID
     name: str
@@ -106,7 +136,9 @@ class PricingRuleResponse(BaseModel):
 class PricingRuleListResponse(BaseModel):
     """Paginated pricing-rule administration response."""
 
-    items: list[PricingRuleResponse]
+    model_config = ConfigDict(title="Pricing Rule List")
+
+    items: list[PricingRuleResponse] = Field(description="Rules on this page.")
     page: int = Field(ge=1)
     page_size: int = Field(ge=1, le=100)
     total: int = Field(ge=0)
@@ -115,10 +147,31 @@ class PricingRuleListResponse(BaseModel):
 class PricingCalculationResponse(BaseModel):
     """Breakdown of the hourly base price and applicable rule adjustments."""
 
-    base_price: Decimal
-    applied_rule: str
-    applied_rules: list[str]
-    surcharge: Decimal
-    discount: Decimal
-    final_price: Decimal
-    currency: str = "USD"
+    model_config = ConfigDict(
+        title="Price Quote",
+        json_schema_extra={
+            "examples": [
+                {
+                    "base_price": "750.00",
+                    "applied_rule": "Weekend court rate",
+                    "applied_rules": ["Weekend court rate"],
+                    "surcharge": "112.50",
+                    "discount": "0.00",
+                    "final_price": "862.50",
+                    "currency": "USD",
+                }
+            ]
+        },
+    )
+
+    base_price: Decimal = Field(description="Base rate multiplied by booking duration.")
+    applied_rule: str = Field(description="Primary pricing rule or base-price label.")
+    applied_rules: list[str] = Field(
+        description="All pricing rules applied to the quote."
+    )
+    surcharge: Decimal = Field(description="Total surcharge amount.")
+    discount: Decimal = Field(description="Total discount amount.")
+    final_price: Decimal = Field(
+        description="Final quoted amount in the response currency."
+    )
+    currency: str = Field(default="USD", description="Currency code for amounts.")

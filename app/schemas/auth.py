@@ -12,7 +12,23 @@ from app.models.enums import UserRole
 class UserRegisterRequest(BaseModel):
     """Payload for registering a new user account."""
 
-    email: str = Field(..., max_length=255, description="Unique email address")
+    model_config = ConfigDict(
+        title="Member Registration Request",
+        json_schema_extra={
+            "examples": [
+                {
+                    "email": "member@example.com",
+                    "password": "CourtPlay123",
+                    "full_name": "Court Member",
+                    "phone_number": "+15550102030",
+                }
+            ]
+        },
+    )
+
+    email: str = Field(
+        ..., max_length=255, description="Unique email address for the account."
+    )
     password: str = Field(
         ...,
         min_length=8,
@@ -20,8 +36,12 @@ class UserRegisterRequest(BaseModel):
             "Password between 8 and 72 bytes with at least one letter and one number"
         ),
     )
-    full_name: str = Field(..., min_length=2, max_length=150)
-    phone_number: str | None = Field(default=None, max_length=30)
+    full_name: str = Field(
+        ..., min_length=2, max_length=150, description="Member's display name."
+    )
+    phone_number: str | None = Field(
+        default=None, max_length=30, description="Optional contact phone number."
+    )
 
     @field_validator("email")
     @classmethod
@@ -49,8 +69,15 @@ class UserRegisterRequest(BaseModel):
 class UserLoginRequest(BaseModel):
     """Payload for authenticating and obtaining tokens."""
 
-    email: str = Field(..., max_length=255)
-    password: str = Field(..., min_length=1)
+    model_config = ConfigDict(
+        title="Login Request",
+        json_schema_extra={
+            "examples": [{"email": "member@example.com", "password": "CourtPlay123"}]
+        },
+    )
+
+    email: str = Field(..., max_length=255, description="Registered account email.")
+    password: str = Field(..., min_length=1, description="Account password.")
 
     @field_validator("email")
     @classmethod
@@ -68,22 +95,59 @@ class UserLoginRequest(BaseModel):
 class TokenRefreshRequest(BaseModel):
     """Payload for refreshing an expired access token."""
 
-    refresh_token: str = Field(..., min_length=10)
+    model_config = ConfigDict(
+        title="Token Refresh Request",
+        json_schema_extra={"examples": [{"refresh_token": "<signed-refresh-token>"}]},
+    )
+
+    refresh_token: str = Field(
+        ..., min_length=10, description="Previously issued refresh token."
+    )
 
 
 class TokenResponse(BaseModel):
     """Response containing signed authentication tokens."""
 
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    expires_in: int
+    model_config = ConfigDict(
+        title="JWT Token Pair",
+        json_schema_extra={
+            "examples": [
+                {
+                    "access_token": "<signed-access-token>",
+                    "refresh_token": "<signed-refresh-token>",
+                    "token_type": "bearer",
+                    "expires_in": 1800,
+                }
+            ]
+        },
+    )
+
+    access_token: str = Field(description="Short-lived signed access token.")
+    refresh_token: str = Field(description="Longer-lived token used for rotation.")
+    token_type: str = Field(default="bearer", description="Authorization scheme.")
+    expires_in: int = Field(description="Access-token lifetime in seconds.")
 
 
 class UserResponse(BaseModel):
     """Public user profile data transfer object."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        title="User Profile",
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": "00000000-0000-4000-8000-000000000010",
+                    "email": "member@example.com",
+                    "full_name": "Court Member",
+                    "phone_number": None,
+                    "role": "MEMBER",
+                    "is_active": True,
+                    "created_at": "2026-12-01T10:00:00Z",
+                }
+            ]
+        },
+    )
 
     id: uuid.UUID
     email: str
