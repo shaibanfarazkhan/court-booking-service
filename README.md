@@ -216,7 +216,7 @@ pytest -v
 - [x] **Phase 11:** Dynamic Pricing Engine (Base, weekend, peak, off-peak, holiday, and override rules)
 - [x] **Phase 12:** Booking Limits (Configurable daily, weekly, future, overlap, and duration policies)
 - [x] **Phase 13:** Reports (Weekly court utilization and booking statistics)
-- [ ] **Phase 14:** Testing (Unit tests, integration tests, concurrency tests)
+- [x] **Phase 14:** Testing (Unit, API, transaction, authorization, validation, concurrency, and regression coverage)
 - [ ] **Phase 15:** Docker (Multi-container production orchestration)
 - [ ] **Phase 16:** CI/CD (GitHub Actions)
 - [ ] **Phase 17:** Documentation (README, LIMITATIONS.md)
