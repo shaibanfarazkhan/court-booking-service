@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Python ${{ matrix.python-version }} checks
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Add supported Python versions here as the project expands its matrix.
+        python-version: ["3.13"]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: court_booking
+          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD || github.run_id }}
+          POSTGRES_DB: court_booking_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U court_booking -d court_booking_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 10s
+
+    env:
+      POSTGRES_USER: court_booking
+      POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD || github.run_id }}
+      POSTGRES_DB: court_booking_ci
+      DATABASE_URL: postgresql+asyncpg://court_booking:${{ secrets.CI_POSTGRES_PASSWORD || github.run_id }}@127.0.0.1:5432/court_booking_ci
+      SECRET_KEY: ${{ secrets.CI_SECRET_KEY || github.run_id }}
+      ENVIRONMENT: ci
+      LOG_LEVEL: WARNING
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Verify project imports
+        run: python -c "import app.main; import app.db.base; print('Application imports passed')"
+
+      - name: Verify Alembic migrations
+        run: |
+          python -m alembic upgrade head
+          python -m alembic current
+
+      - name: Run Ruff
+        run: ruff check .
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Run tests
+        run: pytest

@@ -225,6 +225,22 @@ services have health checks and restart policies. Request logs are JSON and
 include the method, path, status code, and response time without query strings
 or request credentials.
 
+## CI/CD
+
+![GitHub Actions CI](https://github.com/OWNER/REPOSITORY/actions/workflows/ci.yml/badge.svg)
+
+The `CI` workflow runs on every push and pull request. Its Python version
+matrix currently contains Python 3.13 and can be extended in
+`.github/workflows/ci.yml`. Pip dependencies are cached using the runtime and
+development requirements files.
+
+The job starts a health-checked PostgreSQL 16 service, installs development
+dependencies, verifies application imports, applies Alembic migrations, runs
+Ruff lint and formatting checks, and runs the full pytest suite. Any failed
+quality gate fails the workflow. Optional `CI_POSTGRES_PASSWORD` and
+`CI_SECRET_KEY` GitHub Actions secrets can override the ephemeral CI-only
+credentials; no production secrets are required by the test pipeline.
+
 ---
 
 ## 🗺 Implementation Phases
@@ -244,6 +260,6 @@ or request credentials.
 - [x] **Phase 13:** Reports (Weekly court utilization and booking statistics)
 - [x] **Phase 14:** Testing (Unit, API, transaction, authorization, validation, concurrency, and regression coverage)
 - [x] **Phase 15:** Docker (Production multi-container deployment)
-- [ ] **Phase 16:** CI/CD (GitHub Actions)
+- [x] **Phase 16:** CI/CD (GitHub Actions)
 - [ ] **Phase 17:** Documentation (README, LIMITATIONS.md)
 - [ ] **Phase 18:** Final Review & Code Cleanup
