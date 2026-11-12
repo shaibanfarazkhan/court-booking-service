@@ -11,6 +11,7 @@ from app.core.exceptions import (
     BookingHoldExpiredError,
     BookingNotFoundError,
     BookingOwnershipError,
+    BookingPolicyError,
     BookingStateError,
     CancellationWindowError,
     DuplicateActiveHoldError,
@@ -50,7 +51,12 @@ def _raise_booking_error(error: Exception) -> None:
         raise HTTPException(status_code=422, detail=str(error)) from error
     if isinstance(
         error,
-        (BookingStateError, DuplicateActiveHoldError, SlotUnavailableError),
+        (
+            BookingPolicyError,
+            BookingStateError,
+            DuplicateActiveHoldError,
+            SlotUnavailableError,
+        ),
     ):
         raise HTTPException(status_code=409, detail=error.message) from error
     raise error
@@ -70,8 +76,9 @@ async def create_hold(
     try:
         return await BookingService(db).create_hold(current_user.id, payload)
     except (
-        DuplicateActiveHoldError,
+        BookingPolicyError,
         ResourceNotFoundError,
+        DuplicateActiveHoldError,
         SlotUnavailableError,
     ) as exc:
         _raise_booking_error(exc)

@@ -125,9 +125,19 @@ def fake_booking(
     )
 
 
-def test_service_creates_fifteen_minute_hold_and_expires_old_holds() -> None:
+def test_service_creates_fifteen_minute_hold_and_expires_old_holds(monkeypatch) -> None:
     service = BookingService(AsyncMock())
     service.repository = AsyncMock()
+    slot = fake_slot()
+    slot.end_time = slot.start_time + timedelta(hours=1)
+    service.repository.get_slot.return_value = slot
+    service.repository.has_overlap.return_value = False
+    service.repository.count_daily_bookings.return_value = 0
+    service.repository.count_weekly_bookings.return_value = 0
+    service.repository.count_future_bookings.return_value = 0
+    from app.services.booking_policy_service import BookingPolicyService
+
+    monkeypatch.setattr(BookingPolicyService, "validate_booking", AsyncMock())
     expected = object()
     service.repository.create_hold.return_value = expected
 

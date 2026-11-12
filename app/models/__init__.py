@@ -4,6 +4,7 @@ from app.models.admin import Admin
 from app.models.availability import Availability
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.booking import Booking
+from app.models.booking_policy import BookingPolicy
 from app.models.court import Court
 from app.models.court_image import CourtImage
 from app.models.enums import (
@@ -32,6 +33,7 @@ __all__ = [
     "Availability",
     "Base",
     "Booking",
+    "BookingPolicy",
     "BookingStatus",
     "Court",
     "CourtImage",

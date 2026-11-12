@@ -19,6 +19,7 @@ from app.core.exceptions import (
 from app.models.booking import Booking
 from app.models.enums import BookingStatus, SlotStatus
 from app.models.time_slot import TimeSlot
+from app.models.user import User
 
 
 class BookingRepository:
@@ -26,6 +27,19 @@ class BookingRepository:
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def get_slot(self, time_slot_id: uuid.UUID) -> TimeSlot | None:
+        """Load a slot to validate policy before entering the creation transaction."""
+        result = await self.session.execute(
+            select(TimeSlot).where(TimeSlot.id == time_slot_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def lock_member(self, user_id: uuid.UUID) -> None:
+        """Serialize policy checks for one member across concurrent requests."""
+        await self.session.execute(
+            select(User.id).where(User.id == user_id).with_for_update()
+        )
 
     async def create_hold(
         self,

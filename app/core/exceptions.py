@@ -79,3 +79,7 @@ class IdempotencyConflictError(DomainException):
 
 class PricingRuleOverlapError(DomainException):
     """Raised when active rules of the same type overlap in scope."""
+
+
+class BookingPolicyError(DomainException):
+    """Raised when a booking violates configured limits or duration rules."""

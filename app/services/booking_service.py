@@ -3,11 +3,13 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from app.core.exceptions import ResourceNotFoundError
 from app.db.session import AsyncSession
 from app.models.booking import Booking
 from app.models.enums import UserRole
 from app.repositories.booking_repository import BookingRepository
 from app.schemas.bookings import BookingHoldRequest
+from app.services.booking_policy_service import BookingPolicyService
 
 HOLD_DURATION = timedelta(minutes=15)
 CANCELLATION_NOTICE = timedelta(hours=24)
@@ -24,6 +26,12 @@ class BookingService:
     ) -> Booking:
         """Expire old holds and atomically acquire the requested time slot."""
         now = datetime.now(UTC)
+        await self.repository.lock_member(user_id)
+        policy = BookingPolicyService(self.repository.session)
+        slot = await self.repository.get_slot(request.time_slot_id)
+        if slot is None:
+            raise ResourceNotFoundError("Time slot not found.")
+        await policy.validate_booking(user_id, slot.start_time, slot.end_time, now)
         await self.repository.expire_old_holds(now)
         return await self.repository.create_hold(
             user_id=user_id,
