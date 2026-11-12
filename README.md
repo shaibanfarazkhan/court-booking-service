@@ -215,7 +215,7 @@ pytest -v
 - [x] **Phase 10:** Availability API (GET /availability, GET /courts/{id}/availability)
 - [x] **Phase 11:** Dynamic Pricing Engine (Base, weekend, peak, off-peak, holiday, and override rules)
 - [x] **Phase 12:** Booking Limits (Configurable daily, weekly, future, overlap, and duration policies)
-- [ ] **Phase 13:** Reports (Weekly utilization report)
+- [x] **Phase 13:** Reports (Weekly court utilization and booking statistics)
 - [ ] **Phase 14:** Testing (Unit tests, integration tests, concurrency tests)
 - [ ] **Phase 15:** Docker (Multi-container production orchestration)
 - [ ] **Phase 16:** CI/CD (GitHub Actions)

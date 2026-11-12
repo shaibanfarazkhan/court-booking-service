@@ -7,6 +7,7 @@ from app.api.v1.booking_policy import router as booking_policy_router
 from app.api.v1.bookings import router as bookings_router
 from app.api.v1.courts import router as courts_router
 from app.api.v1.pricing import router as pricing_router
+from app.api.v1.reports import router as reports_router
 from app.db.database import check_database_connection
 
 api_router = APIRouter(prefix="/v1")
@@ -18,6 +19,7 @@ api_router.include_router(courts_router)
 api_router.include_router(bookings_router)
 api_router.include_router(booking_policy_router)
 api_router.include_router(pricing_router)
+api_router.include_router(reports_router)
 
 
 @api_router.get("/health", tags=["Health"])
