@@ -163,6 +163,9 @@ Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
+The sample `DATABASE_URL` targets the production Compose service name
+`postgres`. When running the API directly on your host with the local database
+service below, change that hostname to `localhost`.
 
 ### 5. Start PostgreSQL Database
 ```bash
@@ -199,6 +202,29 @@ mypy app tests
 pytest -v
 ```
 
+## Production Deployment
+
+Copy `.env.example` to `.env`, replace the database password and `SECRET_KEY`
+with unique production values, then start the services:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs -f api
+```
+
+The API listens on port `8000` by default. Set `API_PORT` to change the host
+port. The API container waits for PostgreSQL health, runs `alembic upgrade head`,
+then starts Uvicorn. `GET /health` is an unauthenticated liveness endpoint.
+Stop the stack with `docker compose -f docker-compose.prod.yml down`; PostgreSQL
+data remains in the named `postgres_data` volume.
+
+The Compose stack contains a non-root FastAPI container and a PostgreSQL
+container on a private network. PostgreSQL is not published on the host. Both
+services have health checks and restart policies. Request logs are JSON and
+include the method, path, status code, and response time without query strings
+or request credentials.
+
 ---
 
 ## 🗺 Implementation Phases
@@ -217,7 +243,7 @@ pytest -v
 - [x] **Phase 12:** Booking Limits (Configurable daily, weekly, future, overlap, and duration policies)
 - [x] **Phase 13:** Reports (Weekly court utilization and booking statistics)
 - [x] **Phase 14:** Testing (Unit, API, transaction, authorization, validation, concurrency, and regression coverage)
-- [ ] **Phase 15:** Docker (Multi-container production orchestration)
+- [x] **Phase 15:** Docker (Production multi-container deployment)
 - [ ] **Phase 16:** CI/CD (GitHub Actions)
 - [ ] **Phase 17:** Documentation (README, LIMITATIONS.md)
 - [ ] **Phase 18:** Final Review & Code Cleanup

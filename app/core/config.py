@@ -36,6 +36,8 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "Court Booking Service"
     APP_ENV: str = "development"
+    ENVIRONMENT: str = "development"
+    LOG_LEVEL: str = "INFO"
     DEBUG: bool = True
     HOST: str = "0.0.0.0"
     PORT: int = 8000
@@ -63,16 +65,24 @@ class Settings(BaseSettings):
     DB_ECHO: bool = False
 
     # Security & JWT Configuration
-    JWT_SECRET_KEY: str = "court-booking-jwt-secret-key-32-bytes-minimum-security-token"
+    SECRET_KEY: str | None = None
+    JWT_SECRET_KEY: str = "development-only-change-this-secret-before-deployment"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # Security & JWT Configuration
-    JWT_SECRET_KEY: str = "court-booking-jwt-secret-key-32-bytes-minimum-security-token"
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    def model_post_init(self, __context: Any) -> None:
+        """Map deployment SECRET_KEY and reject placeholder production secrets."""
+        if self.SECRET_KEY:
+            self.JWT_SECRET_KEY = self.SECRET_KEY
+        if self.ENVIRONMENT.lower() == "production" and (
+            not self.SECRET_KEY
+            or len(self.SECRET_KEY) < 32
+            or "replace-with" in self.SECRET_KEY.lower()
+        ):
+            raise ValueError(
+                "Production requires a unique SECRET_KEY of at least 32 characters."
+            )
 
     model_config = SettingsConfigDict(
         env_file=".env",

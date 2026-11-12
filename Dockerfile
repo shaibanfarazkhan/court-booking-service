@@ -1,31 +1,41 @@
-FROM python:3.11-slim AS base
+FROM python:3.13-slim AS builder
 
-# Prevent Python from writing .pyc files and buffer stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/opt/venv
 
-WORKDIR /app
+RUN python -m venv "$VIRTUAL_ENV"
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-# Install system dependencies (build-essential, libpq-dev if compiling C extensions)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install python dependencies
-COPY requirements.txt requirements-dev.txt ./
+WORKDIR /build
+COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Create a non-privileged user for security
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+FROM python:3.13-slim AS runtime
 
-USER appuser
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    HOST=0.0.0.0 \
+    PORT=8000
 
-# Copy application source code
-COPY --chown=appuser:appuser . .
+WORKDIR /app
 
+RUN groupadd --system app && \
+    useradd --system --gid app --home-dir /app --no-create-home app
+
+COPY --from=builder /opt/venv /opt/venv
+COPY --chown=app:app app ./app
+COPY --chown=app:app alembic ./alembic
+COPY --chown=app:app alembic.ini ./alembic.ini
+COPY --chown=app:app entrypoint.sh ./entrypoint.sh
+RUN chmod 0555 /app/entrypoint.sh
+
+USER app:app
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.getenv('PORT', '8000') + '/health', timeout=3)"]
 
+ENTRYPOINT ["/app/entrypoint.sh"]

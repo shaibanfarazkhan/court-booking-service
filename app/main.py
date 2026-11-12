@@ -2,11 +2,16 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from time import perf_counter
 
 from fastapi import FastAPI
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import Response
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.logging_config import configure_logging
 from app.db.database import (
     check_database_connection,
     close_database_connection,
@@ -16,6 +21,7 @@ from app.services.booking_service import BookingService
 
 logger = logging.getLogger(__name__)
 HOLD_EXPIRATION_INTERVAL_SECONDS = 60
+configure_logging(settings.LOG_LEVEL)
 
 
 async def _expire_booking_holds_periodically() -> None:
@@ -68,6 +74,46 @@ def create_application() -> FastAPI:
         openapi_url="/openapi.json",
         lifespan=lifespan,
     )
+
+    @application.middleware("http")
+    async def log_request(
+        request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        started_at = perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            logger.error(
+                "http_request_failed",
+                extra={
+                    "structured_data": {
+                        "method": request.method,
+                        "path": request.url.path,
+                        "status_code": 500,
+                        "response_time_ms": round(
+                            (perf_counter() - started_at) * 1000, 2
+                        ),
+                    }
+                },
+            )
+            raise
+        logger.info(
+            "http_request",
+            extra={
+                "structured_data": {
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": response.status_code,
+                    "response_time_ms": round((perf_counter() - started_at) * 1000, 2),
+                }
+            },
+        )
+        return response
+
+    @application.get("/health", tags=["Health"], name="liveness_health_check")
+    async def liveness_health_check() -> dict[str, str]:
+        """Unauthenticated process liveness endpoint for container probes."""
+        return {"status": "healthy"}
 
     application.include_router(api_router, prefix="/api")
 
